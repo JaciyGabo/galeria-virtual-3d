@@ -5,13 +5,15 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 
-// 1. Componente del Lienzo Interactivo
-function InteractivePainting({ setControlsEnabled }: { setControlsEnabled: (val: boolean) => void }) {
+function InteractivePainting({ 
+  setControlsEnabled, 
+  color 
+}: { 
+  setControlsEnabled: (val: boolean) => void, 
+  color: string 
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  
-  // EL FIX: Cambiamos useRef por useState para la textura
   const [texture, setTexture] = useState<THREE.CanvasTexture | null>(null);
-  
   const isDrawing = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
 
@@ -30,8 +32,6 @@ function InteractivePainting({ setControlsEnabled }: { setControlsEnabled: (val:
     newTexture.colorSpace = THREE.SRGBColorSpace;
     
     canvasRef.current = canvas;
-    
-    // Al setear el estado, obligamos a React a renderizar la malla
     setTexture(newTexture);
   }, []);
 
@@ -64,14 +64,13 @@ function InteractivePainting({ setControlsEnabled }: { setControlsEnabled: (val:
       ctx.beginPath();
       ctx.moveTo(lastPos.current.x, lastPos.current.y);
       ctx.lineTo(x, y);
-      ctx.strokeStyle = '#000000';
+      
+      ctx.strokeStyle = color;
       ctx.lineWidth = 8;
       ctx.lineCap = 'round';
       ctx.stroke();
 
       lastPos.current = { x, y };
-      
-      // Actualizamos la textura que ahora vive en el estado
       texture.needsUpdate = true;
     }
   };
@@ -81,7 +80,6 @@ function InteractivePainting({ setControlsEnabled }: { setControlsEnabled: (val:
     setControlsEnabled(true);
   };
 
-  // Ahora esto reaccionará correctamente cuando el estado cambie
   if (!texture) return null;
 
   return (
@@ -92,24 +90,46 @@ function InteractivePainting({ setControlsEnabled }: { setControlsEnabled: (val:
       onPointerOut={stopDrawing}
     >
       <boxGeometry args={[3, 4, 0.1]} />
-      {/* Pasamos la textura del estado */}
       <meshStandardMaterial map={texture} />
     </mesh>
   );
 }
 
-// 6. El Escenario Principal
 export default function GalleryCanvas() {
-  // Estado para bloquear la rotación de la cámara mientras se pinta
   const [controlsEnabled, setControlsEnabled] = useState(true);
+  
+  const [activeColor, setActiveColor] = useState('#000000');
+  
+  const colors = [
+    '#000000', '#ef4444', '#f97316', '#eab308', 
+    '#22c55e', '#3b82f6', '#a855f7', '#ffffff'
+  ];
 
   return (
-    <div className="w-full h-screen bg-gray-900">
+    <div className="relative w-full h-screen bg-gray-900">
+      
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 bg-white/10 backdrop-blur-md p-4 rounded-2xl flex gap-3 shadow-xl border border-white/20">
+        {colors.map((c) => (
+          <button
+            key={c}
+            onClick={() => setActiveColor(c)}
+            className={`w-10 h-10 rounded-full border-2 transition-transform hover:scale-110 ${
+              activeColor === c ? 'border-white scale-110 shadow-lg' : 'border-transparent'
+            }`}
+            style={{ backgroundColor: c }}
+            title={c === '#ffffff' ? 'Goma de borrar' : 'Pincel'}
+          />
+        ))}
+      </div>
+
       <Canvas camera={{ position: [0, 0, 6], fov: 75 }}>
         <ambientLight intensity={0.8} />
         <directionalLight position={[5, 10, 5]} intensity={1.5} />
         
-        <InteractivePainting setControlsEnabled={setControlsEnabled} />
+        <InteractivePainting 
+          setControlsEnabled={setControlsEnabled} 
+          color={activeColor} 
+        />
         
         <OrbitControls enabled={controlsEnabled} enableZoom={true} />
       </Canvas>
